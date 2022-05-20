@@ -32,10 +32,10 @@
             (string-downcase x))) #:websafe? #t))
        lst))
 
-;;; Read in the entire tweet dataset Timeline  (3242) TWEETS
+;;; Read in the entire tweet dataset
 
 (define tweets (string->jsexpr
-                (with-input-from-file "Racketsample1.json" (λ () (json-lines->json-array)))))
+                (with-input-from-file "ugtweets.json" (λ () (json-lines->json-array)))))
 
 ;;t is a list of lists of strings. Tail recursion is used to extract each string and append
 ;; it into one large string.

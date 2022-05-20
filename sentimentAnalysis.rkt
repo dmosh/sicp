@@ -61,9 +61,8 @@
 (define words (document->tokens joined-tweets #:sort? #t))
 
 
-(define android (filter (λ (x) (string=? (second x) "Twitter for Android")) list-string))
-(define iphone (filter (λ (x) (string=? (second x) "Twitter for iPhone")) list-string))
-(define web (filter (λ (x) (string=? (second x) "Twitter Web App")) list-string))
+(define android (filter (λ (x) (string=? (second x) "android")) list-string))
+(define iphone (filter (λ (x) (string=? (second x) "iphone")) list-string))
 
 ;;; Using the nrc lexicon, we can label each (non stop-word) with an
 ;;; emotional label. 
@@ -78,6 +77,8 @@
 
 
 ;;; Better yet, we can visualize this result as a barplot (discrete-histogram)
+; 
+
 
 ;;(remove-stopwords words)
 (define cleaned-texts (remove-punctuation (remove-urls joined-tweets)))
@@ -115,17 +116,18 @@
   (chi-square-goodness counts '(.5 .5)))
 
 ;;; We can also look at which words are contributing the most to our
-;;; positive and negative sentiment scores.
+;;; positive and negative sentiment scores. We'll look at the top 15
+;;; influential (i.e., most frequent) positive and negative words
 (define negatives
   (take (cdr (subset moods2 'sentiment "negative")) 10))
-(define positives
+(define positive-tokens
   (take (cdr (subset moods2 'sentiment "positive")) 10))
 
 ;;; Some clever reshaping for plotting purposes
 (define n (map (λ (x) (list (first x) (- 0 (third x))))
 	       negatives))
 (define p (sort (map (λ (x) (list (first x) (third x)))
-		     positives)
+		     positive-tokens)
 		(λ (x y) (< (second x) (second y)))))
 
 ;;; Plot the results
@@ -197,8 +199,8 @@
   (map (λ (bin) (get-count lst bin))
        bins))
 
-;;; Convert UTC time to EAT
-(define (time-EAT lst)
+;;; Convert UTC time to EST
+(define (time-EST lst)
   (map list
        ($ lst 0)
        (append (drop ($ lst 1) 3) (take ($ lst 1) 3))))
@@ -210,7 +212,7 @@
          ($ lst 0)
          (map (λ (x) (* 100 (/ x n))) ($ lst 1)))))
 
-(let ([a-data (count->percent (time-EAT (fill-missing-bins a-time2 (range 24))))]
+(let ([a-data (count->percent (time-EST (fill-missing-bins a-time2 (range 24))))]
      )
   (parameterize ([plot-legend-anchor 'top-right]
                  [plot-width 800])
@@ -249,3 +251,312 @@
             #:x-label "Month of year "
             #:y-label "% of tweets")))
 
+;;; Plot number of quoted vs unquoted tweets per device
+(plot (list (discrete-histogram tweetbymonth
+                                #:label "Number of tweets per month"
+                                #:skip 2.5
+                                #:x-min 0
+                                #:color "OrangeRed"
+                                #:line-color "OrangeRed")
+            )
+      #:y-max 1000
+      #:x-label "month of the year"
+      #:y-label "Number of tweets")
+
+(define (bin-month2 months)
+  (let ([time-format "~m"])
+    ;; Return
+   (date->string (convert-timestamp months) time-format)
+     ))
+(define get-data-by-month
+  (map (λ (x) (list (second x)
+                    (cond [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "1") "1"]
+                          [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "2") "2"]
+                           [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "3") "3"]
+                            [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "4") "4"]
+                            [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "5") "5"]
+                           [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "6") "6"]
+                            [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "7") "7"]
+                            [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "8") "8"]
+                            [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "9") "9"]
+                            [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "10") "10"]
+                           [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "11") "11"]
+                            [(string-contains? (list-ref (string-split (bin-month2 (first x)) " ") 0) "12") "12"]
+                          [else "other"])))
+       timestamp-by-type))
+
+;;separate tweeets by month
+(define jan (filter (λ (x) (string=? (second x) "1")) get-data-by-month))
+(define feb (filter (λ (x) (string=? (second x) "2")) get-data-by-month))
+(define march (filter (λ (x) (string=? (second x) "3")) get-data-by-month))
+(define april (filter (λ (x) (string=? (second x) "4")) get-data-by-month))
+(define may (filter (λ (x) (string=? (second x) "5")) get-data-by-month))
+(define june (filter (λ (x) (string=? (second x) "6")) get-data-by-month))
+(define july (filter (λ (x) (string=? (second x) "7")) get-data-by-month))
+(define august (filter (λ (x) (string=? (second x) "8")) get-data-by-month))
+(define september (filter (λ (x) (string=? (second x) "9")) get-data-by-month))
+(define october (filter (λ (x) (string=? (second x) "10")) get-data-by-month))
+(define november (filter (λ (x) (string=? (second x) "11")) get-data-by-month))
+(define december (filter (λ (x) (string=? (second x) "12")) get-data-by-month))
+
+(define jan-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 jan "")) )
+(define feb-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 feb "")) )
+(define march-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 march "")) )
+(define april-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 april "")) )
+(define may-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 may "")) )
+(define june-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 june "")) )
+(define july-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 july "")) )
+(define august-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 august "")) )
+(define september-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 september "")) )
+(define october-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 october "")) )
+
+(define november-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 november "")) )
+(define december-tweets
+    (local[
+           (define (joined1 tlist1 acc)
+             (cond [(empty? tlist1) acc]
+                   [else (joined1 (rest tlist1) (string-join (list acc "\n " (first(first tlist1)))))]
+                   )
+             )
+           ](joined1 december "")) )
+
+(define jan-words (document->tokens  jan-tweets #:sort? #t))
+(define feb-words (document->tokens  feb-tweets #:sort? #t))
+(define march-words (document->tokens march-tweets #:sort? #t))
+(define april-words (document->tokens april-tweets #:sort? #t))
+(define may-words (document->tokens may-tweets #:sort? #t))
+(define june-words (document->tokens june-tweets #:sort? #t))
+(define july-words (document->tokens july-tweets #:sort? #t))
+(define august-words (document->tokens august-tweets #:sort? #t))
+(define september-words (document->tokens september-tweets #:sort? #t))
+(define october-words (document->tokens october-tweets #:sort? #t))
+(define november-words (document->tokens november-tweets #:sort? #t))
+(define december-words (document->tokens december-tweets #:sort? #t))
+
+(define jan-sentiment (list->sentiment (remove-stopwords jan-words) #:lexicon 'bing))
+(define feb-sentiment (list->sentiment (remove-stopwords feb-words) #:lexicon 'bing))
+(define march-sentiment (list->sentiment (remove-stopwords march-words) #:lexicon 'bing))
+(define april-sentiment (list->sentiment (remove-stopwords april-words) #:lexicon 'bing))
+(define june-sentiment (list->sentiment (remove-stopwords june-words) #:lexicon 'bing))
+(define july-sentiment (list->sentiment (remove-stopwords july-words) #:lexicon 'bing))
+(define august-sentiment (list->sentiment (remove-stopwords august-words) #:lexicon 'bing))
+(define september-sentiment (list->sentiment (remove-stopwords september-words) #:lexicon 'bing))
+(define  october-sentiment (list->sentiment (remove-stopwords october-words) #:lexicon 'bing))
+(define november-sentiment (list->sentiment (remove-stopwords november-words) #:lexicon 'bing))
+(define december-sentiment (list->sentiment (remove-stopwords december-words) #:lexicon 'bing))
+(define may-sentiment (list->sentiment (remove-stopwords may-words) #:lexicon 'bing))
+
+(define jan-negative-tokens
+  (take (cdr (subset jan-sentiment 'sentiment "negative")) 10))
+(define jan-positive-tokens
+  (take (cdr (subset jan-sentiment 'sentiment "positive")) 10))
+
+
+(define may-negative-tokens
+  (take (cdr (subset may-sentiment 'sentiment "negative")) 10))
+(define may-positive-tokens
+  (take (cdr (subset may-sentiment 'sentiment "positive")) 10))
+(define june-negative-tokens
+  (take (cdr (subset june-sentiment 'sentiment "negative")) 10))
+(define june-positive-tokens
+  (take (cdr (subset june-sentiment 'sentiment "positive")) 10))
+(define july-negative-tokens
+  (take (cdr (subset july-sentiment 'sentiment "negative")) 10))
+(define july-positive-tokens
+  (take (cdr (subset july-sentiment 'sentiment "positive")) 10))
+(define august-negative-tokens
+  (take (cdr (subset august-sentiment 'sentiment "negative")) 10))
+(define august-positive-tokens
+  (take (cdr (subset august-sentiment 'sentiment "positive")) 10))
+(define september-negative-tokens
+  (take (cdr (subset september-sentiment 'sentiment "negative")) 10))
+(define september-positive-tokens
+  (take (cdr (subset september-sentiment 'sentiment "positive")) 10))
+
+
+;;; Some clever reshaping for plotting purposes
+(define n2 (map (λ (x) (list (first x) (- 0 (third x))))
+	       jan-negative-tokens))
+(define p2 (sort (map (λ (x) (list (first x) (third x)))
+		     positive-tokens)
+		(λ (x y) (< (second x) (second y)))))
+;;; Restructure the data for our histogram below
+(define positive
+  (list '( "Jan" ,(second (first jan-negative-tokens)))
+        '( "Feb" ,(second (first android-quotes)))
+        '( "March" ,(second (first android-quotes)))
+        '( "April" ,(second (first android-quotes)))
+        '( "May" ,(second (first android-quotes)))
+        '( "June" ,(second (first android-quotes)))
+        '( "July" ,(second (first android-quotes)))
+        '( "Aug" ,(second (first android-quotes)))
+        '( "Sep" ,(second (first android-quotes)))
+        '( "Oct" ,(second (first android-quotes)))
+        '( "Nov" ,(second (first android-quotes)))
+        '("Dec" ,(second (second iphone-quotes)))))
+(define negative
+  (list '( "Jan" ,(second (first android-quotes)))
+        '( "Feb" ,(second (first android-quotes)))
+        '( "March" ,(second (first android-quotes)))
+        '( "April" ,(second (first android-quotes)))
+        '( "May" ,(second (first android-quotes)))
+        '( "June" ,(second (first android-quotes)))
+        '( "July" ,(second (first android-quotes)))
+        '( "Aug" ,(second (first android-quotes)))
+        '( "Sep" ,(second (first android-quotes)))
+        '( "Oct" ,(second (first android-quotes)))
+        '( "Nov" ,(second (first android-quotes)))
+        '("Dec" ,(second (second iphone-quotes)))))
+(parameterize ([plot-height 200])
+  (plot (discrete-histogram
+	 (aggregate sum ($ jan-sentiment 'sentiment) ($ jan-sentiment 'freq))
+	 #:y-min 0
+	 #:y-max 8000
+	 #:invert? #t
+          #:label "Jan"
+	 #:color "green"
+	 #:line-color "MediumOrchid")
+         
+	#:x-label "Frequency"
+	#:y-label "Sentiment Polarity"))
+
+(parameterize ([plot-height 200])
+  (plot (discrete-histogram
+	 (aggregate sum ($ may-sentiment 'sentiment) ($ may-sentiment 'freq))
+	 #:y-min 0
+	 #:y-max 8000
+	 #:invert? #t
+	 #:color "green"
+          #:label "May"
+	 #:line-color "blue")
+         
+	#:x-label "Frequency"
+	#:y-label "Sentiment Polarity"))
+
+(parameterize ([plot-height 200])
+  (plot (discrete-histogram
+	 (aggregate sum ($ june-sentiment 'sentiment) ($ june-sentiment 'freq))
+	 #:y-min 0
+	 #:y-max 8000
+	 #:invert? #t
+          #:label "June"
+	 #:color "green"
+	 #:line-color "MediumOrchid")
+         
+	#:x-label "Frequency"
+	#:y-label "Sentiment Polarity"))
+
+(parameterize ([plot-height 200])
+  (plot (discrete-histogram
+	 (aggregate sum ($ july-sentiment 'sentiment) ($ july-sentiment 'freq))
+	 #:y-min 0
+	 #:y-max 8000
+	 #:invert? #t
+	 #:color "orange"
+          #:label "July"
+	 #:line-color "MediumOrchid")
+         
+	#:x-label "Frequency"
+	#:y-label "Sentiment Polarity"))
+
+(parameterize ([plot-height 200])
+  (plot (discrete-histogram
+	 (aggregate sum ($ august-sentiment 'sentiment) ($ august-sentiment 'freq))
+	 #:y-min 0
+	 #:y-max 8000
+	 #:invert? #t
+	 #:color "green"
+         #:label "August"
+	 #:line-color "green")
+         
+	#:x-label "Frequency"
+	#:y-label "Sentiment Polarity"))
+(parameterize ([plot-height 200])
+  (plot (discrete-histogram
+	 (aggregate sum ($ september-sentiment 'sentiment) ($ september-sentiment 'freq))
+	 #:y-min 0
+	 #:y-max 8000
+	 #:invert? #t
+         #:label "september"
+	 #:color "green"
+	 #:line-color "red")
+         
+	#:x-label "Frequency"
+	#:y-label "Sentiment Polarity"))
